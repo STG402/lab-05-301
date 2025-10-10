@@ -14,16 +14,18 @@ import androidx.fragment.app.DialogFragment;
 import java.util.Objects;
 
 public class CityDialogFragment extends DialogFragment {
+
     interface CityDialogListener {
-        void updateCity(City city, String title, String year);
+        void updateCity(City city, String title, String province);
         void addCity(City city);
+        void deleteCity(City city);
     }
+
     private CityDialogListener listener;
 
     public static CityDialogFragment newInstance(City city){
         Bundle args = new Bundle();
         args.putSerializable("City", city);
-
         CityDialogFragment fragment = new CityDialogFragment();
         fragment.setArguments(args);
         return fragment;
@@ -34,9 +36,8 @@ public class CityDialogFragment extends DialogFragment {
         super.onAttach(context);
         if (context instanceof CityDialogListener){
             listener = (CityDialogListener) context;
-        }
-        else {
-            throw new RuntimeException("Implement listener");
+        } else {
+            throw new RuntimeException("Host activity must implement CityDialogListener");
         }
     }
 
@@ -44,36 +45,48 @@ public class CityDialogFragment extends DialogFragment {
     @Override
     public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
         View view = getLayoutInflater().inflate(R.layout.fragment_city_details, null);
-        EditText editMovieName = view.findViewById(R.id.edit_city_name);
-        EditText editMovieYear = view.findViewById(R.id.edit_province);
+        EditText editCityName = view.findViewById(R.id.edit_city_name);
+        EditText editProvince = view.findViewById(R.id.edit_province);
 
         String tag = getTag();
         Bundle bundle = getArguments();
         City city;
 
-        if (Objects.equals(tag, "City Details") && bundle != null){
+        boolean isEdit = Objects.equals(tag, "City Details") && bundle != null && bundle.getSerializable("City") != null;
+        if (isEdit) {
             city = (City) bundle.getSerializable("City");
-            assert city != null;
-            editMovieName.setText(city.getName());
-            editMovieYear.setText(city.getProvince());
+            editCityName.setText(city.getName());
+            editProvince.setText(city.getProvince());
+        } else {
+            city = null;
         }
-        else {
-            city = null;}
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        return builder
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext())
                 .setView(view)
-                .setTitle("City Details")
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Continue", (dialog, which) -> {
-                    String title = editMovieName.getText().toString();
-                    String year = editMovieYear.getText().toString();
-                    if (Objects.equals(tag, "City Details")) {
-                        listener.updateCity(city, title, year);
-                    } else {
-                        listener.addCity(new City(title, year));
-                    }
-                })
-                .create();
+                .setTitle(isEdit ? "Edit City" : "Add City")
+                .setNegativeButton("Cancel", null);
+
+        if (isEdit) {
+            builder.setPositiveButton("Save", (dialog, which) -> {
+                String title = editCityName.getText().toString().trim();
+                String province = editProvince.getText().toString().trim();
+                if (!title.isEmpty() && !province.isEmpty()) {
+                    listener.updateCity(city, title, province);
+                }
+            });
+            builder.setNeutralButton("Delete", (dialog, which) -> {
+                listener.deleteCity(city);
+            });
+        } else {
+            builder.setPositiveButton("Add", (dialog, which) -> {
+                String title = editCityName.getText().toString().trim();
+                String province = editProvince.getText().toString().trim();
+                if (!title.isEmpty() && !province.isEmpty()) {
+                    listener.addCity(new City(title, province));
+                }
+            });
+        }
+
+        return builder.create();
     }
 }
